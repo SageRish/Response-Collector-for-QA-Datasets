@@ -16,7 +16,8 @@ async def collect_responses(
     long_max_tokens: int,
     system_prompt: str,
     logger: Logger,
-    progress_callback
+    progress_callback,
+    should_stop: Any = None
 ) -> Tuple[List[List[Dict]], List[Dict]]:
     """
     Collects responses for a single model.
@@ -60,41 +61,55 @@ async def collect_responses(
         except Exception as e:
             raise e
 
-    for doc_idx, q_idx, entry in dataset_loader.iter_questions():
-        question = entry.get("question", "")
-        
-        # Prepare result entry preserving original data
-        result_entry = entry.copy()
-        
-        try:
-            # Sequential execution for short and long to be safe and simple
-            # Short response
-            short_resp = await get_response(question, short_max_tokens)
-            result_entry["short_response"] = short_resp
+    try:
+        for doc_idx, q_idx, entry in dataset_loader.iter_questions():
+            # Check for cancellation (fallback)
+            if should_stop and should_stop():
+                logger.log(f"[{model_cfg.alias}] Collection stopped by user.")
+                progress.status = "Stopped"
+                progress_callback(progress)
+                break
+
+            question = entry.get("question", "")
             
-            # Long response
-            long_resp = await get_response(question, long_max_tokens)
-            result_entry["long_response"] = long_resp
+            # Prepare result entry preserving original data
+            result_entry = entry.copy()
             
-            # Add to collected data
-            collected_data[doc_idx].append(result_entry)
+            try:
+                # Sequential execution for short and long to be safe and simple
+                # Short response
+                short_resp = await get_response(question, short_max_tokens)
+                result_entry["short_response"] = short_resp
+                
+                # Long response
+                long_resp = await get_response(question, long_max_tokens)
+                result_entry["long_response"] = long_resp
+                
+                # Add to collected data
+                collected_data[doc_idx].append(result_entry)
+                
+            except Exception as e:
+                error_msg = str(e)
+                logger.log(f"[{model_cfg.alias}] Error on doc {doc_idx}, q {q_idx}: {error_msg}")
+                missing_responses.append({
+                    "doc_idx": doc_idx,
+                    "q_idx": q_idx,
+                    "question": question,
+                    "error": error_msg
+                })
             
-        except Exception as e:
-            error_msg = str(e)
-            logger.log(f"[{model_cfg.alias}] Error on doc {doc_idx}, q {q_idx}: {error_msg}")
-            missing_responses.append({
-                "doc_idx": doc_idx,
-                "q_idx": q_idx,
-                "question": question,
-                "error": error_msg
-            })
-        
-        # Update progress
-        progress.completed += 1
+            # Update progress
+            progress.completed += 1
+            progress_callback(progress)
+            
+            # Small yield to ensure UI updates if running in same loop (though this is async)
+            await asyncio.sleep(0)
+
+    except asyncio.CancelledError:
+        logger.log(f"[{model_cfg.alias}] Collection task cancelled.")
+        progress.status = "Stopped"
         progress_callback(progress)
-        
-        # Small yield to ensure UI updates if running in same loop (though this is async)
-        await asyncio.sleep(0)
+        return collected_data, missing_responses
 
     progress.status = "Completed"
     progress_callback(progress)
