@@ -23,7 +23,7 @@ def create_app():
         alias_input, provider_input, model_name_input, base_url_input, api_key_input, add_btn, models_list, test_btn, models_state = models_section.render()
         
         # 4. Collection
-        execution_mode, start_btn, stop_btn, stop_dropdown, stop_status = collection_section.render()
+        execution_mode, collection_scope, start_btn, stop_btn, stop_dropdown, stop_status = collection_section.render()
         
         # 5. Progress
         progress_df = progress_section.render()
@@ -76,7 +76,8 @@ def create_app():
             short_tokens, long_tokens, system_prompt,
             dataset_loader,
             models,
-            execution_mode
+            execution_mode,
+            collection_scope
         ):
             logger = Logger()
             
@@ -124,7 +125,8 @@ def create_app():
                     data, missing = await collect_responses(
                         model, dataset_loader, 
                         int(short_tokens), int(long_tokens), 
-                        system_prompt, logger, progress_callback
+                        system_prompt, logger, progress_callback,
+                        collection_scope=collection_scope
                     )
                     
                     # Save outputs
@@ -206,7 +208,8 @@ def create_app():
             run_collection,
             inputs=[
                 short_tokens, long_tokens, system_prompt,
-                dataset_state, models_state, execution_mode
+                dataset_state, models_state, execution_mode,
+                collection_scope
             ],
             outputs=[progress_df, logs_output, stop_dropdown, stop_status]
         )

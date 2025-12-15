@@ -17,7 +17,8 @@ async def collect_responses(
     system_prompt: str,
     logger: Logger,
     progress_callback,
-    should_stop: Any = None
+    should_stop: Any = None,
+    collection_scope: str = "Both"
 ) -> Tuple[List[List[Dict]], List[Dict]]:
     """
     Collects responses for a single model.
@@ -77,13 +78,20 @@ async def collect_responses(
             
             try:
                 # Sequential execution for short and long to be safe and simple
+                
                 # Short response
-                short_resp = await get_response(question, short_max_tokens)
-                result_entry["short_response"] = short_resp
+                if collection_scope in ["Both", "Short Only"]:
+                    short_resp = await get_response(question, short_max_tokens)
+                    result_entry["short_response"] = short_resp
+                else:
+                    result_entry["short_response"] = None
                 
                 # Long response
-                long_resp = await get_response(question, long_max_tokens)
-                result_entry["long_response"] = long_resp
+                if collection_scope in ["Both", "Long Only"]:
+                    long_resp = await get_response(question, long_max_tokens)
+                    result_entry["long_response"] = long_resp
+                else:
+                    result_entry["long_response"] = None
                 
                 # Add to collected data
                 collected_data[doc_idx].append(result_entry)
