@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LLM Response Collector Output Schema",
+  "type": "object",
+  "properties": {
+    "model": {
+      "type": "string",
+      "description": "The alias of the model used to generate responses."
+    },
+    "data": {
+      "type": "array",
+      "description": "List of documents, where each document is a list of QA pairs.",
+      "items": {
+        "type": "array",
+        "description": "A document containing multiple QA pairs.",
+        "items": {
+          "type": "object",
+          "description": "A single QA pair with collected responses.",
+          "properties": {
+            "question": {
+              "type": "string",
+              "description": "The question asked."
+            },
+            "short_ground_truth": {
+              "type": "string",
+              "description": "Concise ground-truth answer (first entry from `all_qa_pairs.json` for the section)."
+            },
+            "long_ground_truth": {
+              "type": "string",
+              "description": "Long-form ground-truth answer (second entry if present, otherwise same as short_ground_truth)."
+            },
+            "short_response": {
+              "type": "string",
+              "description": "The response generated with a short token limit."
+            },
+            "long_response": {
+              "type": "string",
+              "description": "The response generated with a long token limit."
+            }
+          },
+          "required": [
+            "question",
+            "short_ground_truth", 
+            "long_ground_truth",
+            "short_response",
+            "long_response"
+          ],
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "required": [
+    "model",
+    "data"
+  ]
+}
